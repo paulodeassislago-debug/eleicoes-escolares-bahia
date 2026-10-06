@@ -1,0 +1,3 @@
+import {passwordHash,randomToken} from '../src/auth.mjs';import {writeFileSync} from 'node:fs';
+// Provide credentials through stdin. The resulting file must stay outside Git.
+let raw='';for await(let c of process.stdin)raw+=c;const {email,password,name}=JSON.parse(raw);if(!email.endsWith('@enova.educacao.ba.gov.br'))throw Error('Domínio inválido');let salt=randomToken();let data={id:crypto.randomUUID(),schoolId:crypto.randomUUID(),email,name,salt,hash:await passwordHash(password,salt)};writeFileSync('.test-seed.json',JSON.stringify(data),{mode:0o600});console.log('Configuração de teste criada; nenhum segredo foi publicado.');

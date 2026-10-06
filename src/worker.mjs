@@ -1,0 +1,2 @@
+import {handle} from './auth.mjs';import {seedTest} from './test-seed.mjs';
+export default {async fetch(request,env){const url=new URL(request.url);if(url.pathname.startsWith('/api/')){if(!env.DB)return Response.json({error:'Armazenamento indisponível.'},{status:503});try{await seedTest(env.DB,env.TEST_SEED_JSON,env.LEGACY_OWNER_ID);return await handle(request,env.DB,env);}catch(e){console.error('Serviço indisponível:',e.name);return Response.json({error:'Serviço temporariamente indisponível.'},{status:503});}}return env.ASSETS.fetch(request);}};

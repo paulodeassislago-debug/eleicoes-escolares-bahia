@@ -1,0 +1,18 @@
+{
+  "name": "eleicoes-escolares",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "build": "node build.mjs",
+    "db:generate": "drizzle-kit generate",
+    "test": "node verify.mjs && node verify-auth.mjs",
+    "start:env": "node --env-file=.env server.mjs",
+    "test:seed": "node scripts/create-test-config.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "drizzle-kit": "^0.31.0",
+    "drizzle-orm": "^0.44.0"
+  }
+}

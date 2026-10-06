@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.sqlite*
+.env
+.env.*
+!.env.example
+.test-seed.json
+.mail/
+*.tar.gz
