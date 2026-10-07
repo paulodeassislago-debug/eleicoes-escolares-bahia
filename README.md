@@ -82,6 +82,16 @@ O script gera `.test-seed.json` (ignorado pelo Git). Use seu conteúdo na variá
 
 A conta pré-configurada de teste é explicitamente marcada como tal, dispensa confirmação por e-mail exclusivamente para o teste e exige troca de senha antes de acessar a gestão. Os cadastros comuns nunca usam essa exceção. Não publique uma instância com contas de teste e credenciais conhecidas. Depois de preparar o ambiente, `TEST_SEED_JSON` pode ser removida sem apagar os registros existentes.
 
+### Apresentação com três escolas
+
+A configuração privada opcional `DEMO_PRESENTATION_JSON` tem `{scenario:"three-schools", revision, schoolBId, schoolCId}`. Uma nova revisão reinicia **somente a escola fictícia configurada em `TEST_SEED_JSON`**, como Escola Teste A, e cria B e C na mesma conta. Cada escola tem 8 turmas, 204 eleitores e 52 candidatos de classe; há turmas concluintes, categorias com disputas e categorias sem candidatos.
+
+- **A — Atas e líderes escolares:** primeiro turno encerrado com 188 cédulas fictícias e 16 abstenções; líderes e vices definidos nas oito turmas, brancos e nulos registrados. Segundo turno preparado com 18 líderes elegíveis, excluindo concluintes e vices. A votação escolar ainda não está aberta.
+- **B — Votação aberta:** primeiro turno aberto, nenhum voto e 204 códigos individuais disponíveis em CSV.
+- **C — Inscrições abertas:** cadastros liberados, nenhum voto e nenhuma urna aberta.
+
+A configuração é aplicada uma única vez por revisão. Atualizações, novos acessos ou reinícios não reiniciam os votos da apresentação. Senhas, contas e escolas reais não são alteradas. As fotos de IA são copiadas para o armazenamento de cada escola. Atas de escolas fictícias mostram a identificação de simulação.
+
 ## Fluxo eleitoral
 
 1. Cadastre turmas, código de dois dígitos, quantidade de eleitores e indicador de turma concluinte. Exemplos: 11 = 1º A matutino, 12 = 1º B matutino, 13 = 1º A vespertino, 21 = 2º A matutino. O código é exclusivo na escola. Quando omitido, o sistema sugere o primeiro dígito pela série do nome e o segundo pela ordem de cadastro; informe-o explicitamente para seguir o mapa de turmas adotado pela escola.
