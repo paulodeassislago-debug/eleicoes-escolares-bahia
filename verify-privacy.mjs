@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
+import {readFileSync,readdirSync} from 'node:fs';
+import {handle,digest} from './src/auth.mjs';
+import {fresh,action} from './src/core.mjs';
+import {photoBytes,photoData,sanitizeJPEG} from './src/photos.mjs';
+import {publicAssets} from './src/public-assets.mjs';
+import worker from './src/worker.mjs';
+
+const sql=new DatabaseSync(':memory:');for(const f of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())sql.exec(readFileSync('drizzle/'+f,'utf8'));
+const db={prepare(q){let values=[];return{bind(...v){values=v;return this;},async first(){return sql.prepare(q).get(...values);},async all(){return{results:sql.prepare(q).all(...values)};},async run(){return{meta:{changes:sql.prepare(q).run(...values).changes}};}};},async batch(statements){sql.exec('BEGIN');try{const r=[];for(const s of statements)r.push(await s.run());sql.exec('COMMIT');return r;}catch(e){sql.exec('ROLLBACK');throw e;}}};
+const origin='https://privacy.test',timestamp=Math.floor(Date.now()/1000),owner='owner',foreign='other-owner',ownerToken='a'.repeat(64),foreignToken='b'.repeat(64);
+for(const [id,token] of [[owner,ownerToken],[foreign,foreignToken]]){sql.prepare('INSERT INTO users(id,email,name,password_hash,salt,verified,created_at) VALUES(?,?,?,?,?,1,?)').run(id,id+'@enova.educacao.ba.gov.br','Gestor','private-hash','private-salt',timestamp);sql.prepare('INSERT INTO sessions(hash,user_id,epoch,expires_at) VALUES(?,?,0,?)').run(await digest(token),id,timestamp+3600);}
+const s=fresh('Escola privada','Cidade','');for(const name of ['Turma A','Turma B'])action(s,{type:'class',name,students:1});for(const turma of s.classes)action(s,{type:'candidate',classId:turma.id,category:0,name:'Candidato '+turma.name});
+const raw=new Uint8Array(readFileSync('public/bahia.jpg')),secret=new TextEncoder().encode('Exif GPS-PRIVATE-SENTINEL'),app1=Uint8Array.from([255,225,0,secret.length+2,...secret]),rich=new Uint8Array(raw.length+app1.length);rich.set(raw.subarray(0,2));rich.set(app1,2);rich.set(raw.subarray(2),2+app1.length);
+const cleaned=photoBytes(photoData(rich));assert(!new TextDecoder().decode(cleaned).includes('GPS-PRIVATE-SENTINEL'));assert.deepEqual(sanitizeJPEG(cleaned),cleaned);
+assert.throws(()=>sanitizeJPEG(Uint8Array.of(255,216,255,217)));assert.throws(()=>sanitizeJPEG(Uint8Array.from([...raw,1])));
+s.rounds[1].candidates[0].photo='private-file.jpg';s.rounds[1].candidates[0].privateNote='DO-NOT-SEND';action(s,{type:'open'});sql.prepare('INSERT INTO schools(id,owner,payload) VALUES(?,?,?)').run('school-private',owner,JSON.stringify(s));
+let reads=0;const storage={async get(key){reads++;assert.equal(key,'school-private/private-file.jpg');return{arrayBuffer:async()=>rich.buffer};}};
+const request=(path,body,token='')=>new Request(origin+path,{method:body?'POST':'GET',headers:{Origin:origin,'Content-Type':'application/json',Cookie:token?'elege_session='+token:'','CF-Connecting-IP':'192.0.2.10'},...(body?{body:JSON.stringify(body)}:{})});
+const call=(path,body,token)=>handle(request(path,body,token),db,{APP_URL:origin,PHOTOS:storage});
+const me=await(await call('/api/auth/me',null,ownerToken)).json();assert(!JSON.stringify(me).includes('private-hash'));assert(!JSON.stringify(me).includes('private-salt'));assert.deepEqual(Object.keys(me.user).sort(),['email','id','mustChange','name','testAccount','verified']);
+const photoURL='/api/candidate-photo?school=school-private&candidateId='+s.rounds[1].candidates[0].id;
+assert.equal((await call('/api/state?school=school-private')).status,401);assert.equal((await call(photoURL)).status,401);assert.equal((await call(photoURL,null,foreignToken)).status,400);assert.equal(reads,0);
+const [a,b]=s.rounds[1].tokens;
+const own=await call(photoURL,null,ownerToken);assert.equal(own.status,200);assert.equal(own.headers.get('Cache-Control'),'private, no-store');assert.deepEqual(new Uint8Array(await own.arrayBuffer()),cleaned);
+const allowed=await call('/api/ballot',{school:'school-private',code:a.code});assert.equal(allowed.status,200);const ballot=await allowed.json();assert.equal(ballot.candidates.length,1);assert.deepEqual(Object.keys(ballot.candidates[0]).sort(),['category','id','name','number','photo']);assert.equal(ballot.candidates[0].photo,true);assert(!JSON.stringify(ballot).includes('private-file.jpg'));assert(!JSON.stringify(ballot).includes('DO-NOT-SEND'));assert(!('tokens' in ballot));assert(!('tally' in ballot));assert(!JSON.stringify(ballot).includes(b.code));
+const before=reads;const args={school:'school-private',candidateId:s.rounds[1].candidates[0].id};assert.equal((await call('/api/candidate-photo',{...args,code:b.code})).status,400);assert.equal((await call('/api/candidate-photo',{...args,code:'wrong'})).status,400);assert.equal(reads,before);
+const allowedPhoto=await call('/api/candidate-photo',{...args,code:a.code});assert.equal(allowedPhoto.status,200);assert.equal((await allowedPhoto.json()).photo,photoData(cleaned));
+assert.equal((await call('/api/vote',{school:'school-private',code:a.code,choices:{0:args.candidateId}})).status,200);const after=reads;assert.equal((await call('/api/candidate-photo',{...args,code:a.code})).status,400);assert.equal(reads,after);
+let staticReads=0;const assets={fetch:async()=>{staticReads++;return new Response('public');}};
+for(const path of ['/.env','/elections.sqlite','/.uploads/school-private/private-file.jpg','/private-file.jpg','/src/auth.mjs','/app.js.map'])assert.equal((await worker.fetch(new Request(origin+path),{ASSETS:assets})).status,404);
+assert.equal(staticReads,0);assert.equal((await worker.fetch(new Request(origin+'/app.js'),{ASSETS:assets})).status,200);
+assert.deepEqual(new Set(readdirSync('public')),publicAssets);
+console.log('PASS privacidade: dados mínimos na urna, nenhuma chave de foto/código alheio, fotos bloqueadas sem sessão/entre escolas/turmas/após uso, sem leitura do armazenamento em ataques, metadados removidos e arquivos privados fora das rotas públicas.');

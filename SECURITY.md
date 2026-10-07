@@ -26,7 +26,7 @@ Revisão realizada em 7 de outubro de 2026, sobre o código do backend Node/Clou
 - Senhas com salt individual e PBKDF2-SHA256; respostas de login genéricas e limites por conta/IP.
 - Registro de cédula completa em uma atualização condicionada à versão da escola: duas requisições concorrentes com o mesmo código não contam dois votos.
 - Códigos usados não permitem nova cédula ou consulta de foto pela urna. No primeiro turno, candidatos e fotos são restritos à turma do eleitor.
-- Fotos em armazenamento separado, limite de 64 KiB, chaves sem travessia de diretórios e respostas com tipo JPEG e `nosniff`. A validação no servidor verifica formato externo e assinatura, mas não decodifica integralmente o JPEG.
+- Fotos em armazenamento separado, limite de 64 KiB, chaves sem travessia de diretórios e respostas com tipo JPEG e `nosniff`. O servidor valida a estrutura dos segmentos e dimensões do JPEG e remove metadados; não realiza uma decodificação completa da imagem.
 - Respostas da API com `Cache-Control: no-store`; chave da Brevo e configurações de teste ficam no servidor.
 - O backend não guarda uma lista relacionando cada código ao candidato escolhido: armazena uso do código e totais agregados.
 
@@ -50,3 +50,31 @@ A biblioteca do PDF distribuída como arquivo estático foi atualizada de jsPDF 
 A CSP permite scripts apenas da própria origem. Estilos inline continuam permitidos porque a interface atual os utiliza; scripts inline e `eval` não são liberados. Imagens locais e `data:` são necessárias para as fotos, e áudio local/`blob:` para a urna. A incorporação é limitada à própria origem e às origens do ChatGPT usadas pela hospedagem atual. Em outra infraestrutura, ajustar essa lista de origens ao uso autorizado.
 
 Relatos de vulnerabilidade não devem incluir senhas, tokens, códigos de votação ou dados pessoais em issues públicas. Encaminhar os detalhes ao responsável pela instalação por canal privado.
+
+## Revisão adicional do frontend e das fotos
+
+Os recursos públicos foram inspecionados: contêm interface, bibliotecas, logotipos, áudio e a imagem **fictícia de IA** usada na demonstração. Não foram encontrados nomes reais de estudantes, listas de eleitores, códigos individuais, senhas ou chaves de serviços nesses arquivos. O nome `photoFile` no formulário representa a seleção local de arquivo, não um caminho público de upload.
+
+O navegador da gestão precisa receber os dados da própria escola, incluindo nomes de candidatos, turmas, categorias, apuração e códigos para imprimir as colinhas. Esses dados vêm de API autenticada, com `no-store`, e não são arquivos estáticos. Não existe cadastro nominal de todos os eleitores: as turmas informam quantidade de estudantes; os candidatos têm nome e foto opcional. As categorias identitárias também são informações pessoais e são visíveis nos contextos autorizados da eleição.
+
+A cédula agora usa uma lista explícita de campos: `id`, `name`, `number`, `category` e `photo` (booleano). Não devolve chaves de armazenamento de fotos, observações internas, códigos de outros estudantes, totais de votos ou o estado completo da escola. No primeiro turno, a lista é limitada à turma do código; no segundo e terceiro, aos candidatos da escola daquele turno.
+
+### Proteção das imagens
+
+- Fotos cadastradas ficam fora de `public/`: em disco privado na execução Node e no binding R2 do backend na hospedagem.
+- A API verifica sessão e proprietário para a gestão; a urna exige código válido, não usado, turno aberto e candidato permitido para aquele eleitor. A autorização ocorre antes da leitura da imagem no armazenamento.
+- Não existe rota de listagem ou download direto por nome do arquivo. Novos nomes de objetos são UUIDs independentes do identificador do candidato; o acesso continua dependendo da autorização, não do segredo do nome.
+- EXIF, XMP, IPTC, comentários e outros segmentos de metadados são retirados dos novos uploads no servidor. Imagens antigas também são sanitizadas quando servidas, sem precisar substituir o objeto já armazenado.
+- JPEGs com estrutura inválida, dados após o marcador final, dimensões acima de 4096 por eixo ou formatos de componentes não suportados são rejeitados. As imagens aceitas continuam sendo decodificadas pelo navegador, sob CSP e `nosniff`.
+- Tanto o Worker quanto o servidor Node só servem uma lista explícita de arquivos públicos. O build falha se um arquivo não autorizado aparecer em `public/` e limpa a saída anterior antes de copiar recursos. A configuração de assets encaminha todas as requisições primeiro pelo Worker, para aplicar essa restrição.
+- Na execução Node, respostas da API passaram a ser entregues como bytes, corrigindo a corrupção de JPEGs causada pela conversão de respostas binárias em texto.
+
+### Dados remanescentes no tablet
+
+Ao entrar na urna, a sessão da gestão é encerrada e dados de escola, lista de escolas, formulário/modal e prévias da câmera são removidos da interface. Ao sair da página, a urna e suas escolhas em memória são descartadas e as telas são limpas. Ao restaurar uma página pelo histórico, a aplicação consulta novamente a autenticação. A cédula concluída é apagada antes de atender o próximo estudante. Não há armazenamento de candidatos, imagens ou códigos em `localStorage`, `sessionStorage`, IndexedDB ou service worker.
+
+### Evidências e limites
+
+`verify-privacy.mjs` verifica payload mínimo, fotos bloqueadas sem sessão e entre escolas/turmas, bloqueio após uso do código, nenhuma leitura do armazenamento nas tentativas proibidas, remoção de um metadado sentinela e rejeição de caminhos como `.env`, banco, uploads e mapas de código. A verificação local no navegador confirmou que as fotos sanitizadas continuam abrindo na gestão e na urna e que os dados do modal/histórico são limpos. As colinhas continuam funcionando.
+
+Esta revisão verifica o código e o caminho de acesso pela aplicação; não inspeciona diretamente as permissões administrativas do bucket na Cloudflare. Na infraestrutura definitiva, confirmar que R2 não tem domínio público nem acesso `r2.dev` habilitado e que backups possuem acesso restrito. Quem tem acesso autorizado à tela pode salvar ou capturar uma imagem; controles de acesso não impedem isso. PDFs baixados ficam no aparelho de quem os gerou e contêm códigos de votação: não são apagados pelo logout da aplicação.
