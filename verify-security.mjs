@@ -1,0 +1,43 @@
+import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
+import {readFileSync,readdirSync} from 'node:fs';
+import {handle,digest} from './src/auth.mjs';
+import {api,fresh,action} from './src/core.mjs';
+
+const sql=new DatabaseSync(':memory:');
+for(const file of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())sql.exec(readFileSync('drizzle/'+file,'utf8'));
+const db={prepare(query){let values=[];return{bind(...args){values=args;return this;},async first(){return sql.prepare(query).get(...values);},async all(){return{results:sql.prepare(query).all(...values)};},async run(){return{meta:{changes:sql.prepare(query).run(...values).changes}};}};},async batch(statements){sql.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());sql.exec('COMMIT');return results;}catch(e){sql.exec('ROLLBACK');throw e;}}};
+const origin='https://security.test',schoolId=crypto.randomUUID(),userId=crypto.randomUUID(),session='a'.repeat(64),now=Math.floor(Date.now()/1000);
+sql.prepare('INSERT INTO users(id,email,name,password_hash,salt,verified,created_at) VALUES(?,?,?,?,?,1,?)').run(userId,'review@enova.educacao.ba.gov.br','Revisão','hash','salt',now);
+sql.prepare('INSERT INTO sessions(hash,user_id,epoch,expires_at) VALUES(?,?,0,?)').run(await digest(session),userId,now+3600);
+const s=fresh('Escola Segurança','Salvador','');action(s,{type:'class',name:'1 A',students:2});action(s,{type:'candidate',name:'Fictício',category:0,classId:s.classes[0].id});action(s,{type:'open'});
+sql.prepare('INSERT INTO schools(id,owner,payload) VALUES(?,?,?)').run(schoolId,userId,JSON.stringify(s));
+const req=(path,body,ip='192.0.2.1')=>new Request(origin+path,{method:body===undefined?'GET':'POST',headers:{Origin:origin,'Content-Type':'application/json','CF-Connecting-IP':ip,Cookie:'elege_session='+session},...(body===undefined?{}:{body:typeof body==='string'?body:JSON.stringify(body)})});
+const call=async(path,body,status,ip)=>{const response=await handle(req(path,body,ip),db,{APP_URL:origin});assert.equal(response.status,status,await response.clone().text());return response;};
+await call('/api/not-a-route',{school:schoolId,type:'close'},404);
+assert.equal(JSON.parse(sql.prepare('SELECT payload FROM schools WHERE id=?').get(schoolId).payload).rounds[1].phase,'voting');
+await call('/api/ballot?school='+schoolId+'&code='+s.rounds[1].tokens[0].code,undefined,405);
+for(const malformed of ['{','null','[]','"text"','{"name":{}}'])await call('/api/schools',malformed,400);
+await call('/api/state',JSON.stringify({school:schoolId,padding:'á'.repeat(70000)}),413);
+const raw=new TextEncoder().encode('x'.repeat(140000));let cancelled=false;
+const stream=new ReadableStream({start(c){c.enqueue(raw);},cancel(){cancelled=true;}});
+const streamed=new Request(origin+'/api/state',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:stream,duplex:'half'});
+assert.equal((await handle(streamed,db,{APP_URL:origin})).status,413);assert(cancelled);
+const anonymous=new Request(origin+'/api/state?school='+schoolId);assert.equal((await handle(anonymous,db,{APP_URL:origin})).status,401);
+const foreign=new Request(origin+'/api/state',{method:'POST',headers:{Origin:'https://attacker.test','Content-Type':'application/json'},body:JSON.stringify({school:schoolId,type:'close'})});
+assert.equal((await handle(foreign,db,{APP_URL:origin})).status,403);
+// An attacker cannot renew their guessing allowance by rotating school identifiers.
+for(let i=0;i<20;i++)await call('/api/ballot',{school:crypto.randomUUID(),code:'999999'},400,'192.0.2.3');
+await call('/api/ballot',{school:schoolId,code:s.rounds[1].tokens[0].code},429,'192.0.2.3');
+const response=await call('/api/auth/me',undefined,200);
+assert.match(response.headers.get('Content-Security-Policy'),/script-src 'self'/);assert.match(response.headers.get('Permissions-Policy'),/camera=\(self\)/);assert.equal(response.headers.get('X-Content-Type-Options'),'nosniff');assert.equal(response.headers.get('Cache-Control'),'no-store');
+const broken={prepare(){throw Error('database-password=DO-NOT-LEAK');}};
+const failure=await api(req('/api/state?school='+schoolId),broken,userId);
+assert.equal(failure.status,500);assert(!/DO-NOT-LEAK/.test(await failure.text()));
+// Concurrent requests for one credential must commit exactly one ballot.
+const choices={0:s.rounds[1].candidates[0].id};
+const votes=await Promise.all([0,1].map(()=>handle(req('/api/vote',{school:schoolId,code:s.rounds[1].tokens[0].code,choices}),db,{APP_URL:origin})));
+assert.deepEqual(votes.map(r=>r.status).sort(),[200,400]);
+const final=JSON.parse(sql.prepare('SELECT payload FROM schools WHERE id=?').get(schoolId).payload);
+assert.equal(final.rounds[1].turnout,1);assert.equal(final.rounds[1].tally[choices[0]],1);
+console.log('PASS segurança: caminhos e métodos fechados, JSON e limite por bytes, cancelamento de stream, CSRF, bloqueio de tentativas entre escolas, cabeçalhos, erros internos ocultos e voto concorrente único.');

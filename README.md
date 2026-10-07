@@ -143,4 +143,8 @@ Os logotipos são dos programas e do Governo da Bahia; sua presença não transf
 
 ### Colinhas para impressão
 
-Na tela **Eleição**, durante a votação, use **Baixar colinhas (PDF)**. O arquivo A4 contém oito colinhas por página, com linhas pontilhadas para recorte, escola, turma, código individual e quadradinhos em branco para cada dígito dos cargos disponíveis. Cada turma começa em uma página nova. No primeiro turno aparecem apenas os cargos com candidatos naquela turma; nos demais, os cargos da escola. A quantidade de quadradinhos acompanha a numeração do turno. Códigos já utilizados são omitidos. Imprima a 100% e entregue uma colinha por estudante, para preenchimento antes de entrar na urna. O PDF é gerado no próprio navegador, usando a biblioteca jsPDF 3.0.4 (MIT), hospedada com o aplicativo, sem enviar os códigos a serviços externos.
+Na tela **Eleição**, durante a votação, use **Baixar colinhas (PDF)**. O arquivo A4 contém oito colinhas por página, com linhas pontilhadas para recorte, escola, turma, código individual e quadradinhos em branco para cada dígito dos cargos disponíveis. Cada turma começa em uma página nova. No primeiro turno aparecem apenas os cargos com candidatos naquela turma; nos demais, os cargos da escola. A quantidade de quadradinhos acompanha a numeração do turno. Códigos já utilizados são omitidos. Imprima a 100% e entregue uma colinha por estudante, para preenchimento antes de entrar na urna. O PDF é gerado no próprio navegador, usando a biblioteca jsPDF 4.2.1 (MIT), hospedada com o aplicativo, sem enviar os códigos a serviços externos.
+
+### Segurança
+
+A revisão, as proteções implementadas e os requisitos para uso institucional estão em [SECURITY.md](SECURITY.md). A API utiliza caminhos e métodos explícitos, leitura limitada em bytes, validação de campos, isolamento por proprietário, proteção CSRF, limitação de tentativas e cabeçalhos de segurança. O ambiente atual permanece como demonstração privada.

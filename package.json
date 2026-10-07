@@ -6,13 +6,18 @@
     "start": "node server.mjs",
     "build": "node build.mjs",
     "db:generate": "drizzle-kit generate",
-    "test": "node verify.mjs && node verify-auth.mjs && node verify-photos.mjs && node verify-numbering.mjs && node verify-presentation.mjs",
+    "test": "node verify.mjs && node verify-auth.mjs && node verify-photos.mjs && node verify-numbering.mjs && node verify-presentation.mjs && node verify-security.mjs",
     "start:env": "node --env-file=.env server.mjs",
     "test:seed": "node scripts/create-test-config.mjs"
   },
   "devDependencies": {
-    "esbuild": "^0.25.0",
     "drizzle-kit": "^0.31.0",
-    "drizzle-orm": "^0.44.0"
+    "drizzle-orm": "^0.45.3",
+    "esbuild": "^0.25.0"
+  },
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.0"
+    }
   }
 }
