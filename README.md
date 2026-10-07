@@ -78,7 +78,7 @@ Para preparar uma conta de teste **em ambiente privado**, forneça um JSON `{ema
 npm run test:seed
 ```
 
-O script gera `.test-seed.json` (ignorado pelo Git). Use seu conteúdo na variável secreta `TEST_SEED_JSON`. Na primeira requisição da hospedagem, ou no início do servidor local, a conta e a escola de demonstração são criadas uma única vez. Reinícios não sobrescrevem a senha nem recriam dados apagados. A escola tem 3 turmas, 21 eleitores e 10 candidaturas fictícias, incluindo as cinco categorias. Sua urna começa fechada para preparação.
+O script gera `.test-seed.json` (ignorado pelo Git). Use seu conteúdo na variável secreta `TEST_SEED_JSON`. Na primeira requisição da hospedagem, ou no início do servidor local, a conta e a escola de demonstração são criadas uma única vez. Reinícios não sobrescrevem a senha nem recriam dados apagados. A escola tem 3 turmas, 21 eleitores e 10 candidaturas fictícias, incluindo as cinco categorias. Sua urna começa fechada para preparação. A imagem `public/demo-candidate.jpg` foi gerada por IA e é reutilizada exclusivamente como retrato de validação nos candidatos fictícios sem foto da escola configurada em `TEST_SEED_JSON`. A aplicação adiciona essas fotos uma única vez, sem sobrescrever fotos cadastradas, votos ou contas; as imagens são copiadas para o armazenamento de fotos.
 
 A conta pré-configurada de teste é explicitamente marcada como tal, dispensa confirmação por e-mail exclusivamente para o teste e exige troca de senha antes de acessar a gestão. Os cadastros comuns nunca usam essa exceção. Não publique uma instância com contas de teste e credenciais conhecidas. Depois de preparar o ambiente, `TEST_SEED_JSON` pode ser removida sem apagar os registros existentes.
 
