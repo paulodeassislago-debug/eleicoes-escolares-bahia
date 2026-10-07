@@ -86,11 +86,19 @@ A conta pré-configurada de teste é explicitamente marcada como tal, dispensa c
 
 1. Cadastre turmas, quantidade de eleitores e indicador de turma concluinte.
 2. Cadastre candidatos com números de dois dígitos. Toda turma precisa de candidatura geral; as identitárias são opcionais.
-3. Abra o primeiro turno e distribua os códigos individuais, disponíveis em CSV. Cada código confirma uma cédula por turno.
+3. Abra o primeiro turno e baixe os códigos individuais em CSV. Os novos códigos são numéricos, com 6 dígitos (incluindo eventuais zeros à esquerda), únicos na escola e renovados em cada turno. Ao baixar uma lista antiga, os códigos ainda disponíveis são encurtados; os códigos antigos já distribuídos continuam funcionando como alternativa, com o mesmo uso único. Entregue um código por estudante na fila do tablet.
 4. Encerre a votação. O candidato geral mais votado é líder; o segundo colocado é vice-líder. Empates ou ausência de votos válidos ficam pendentes de decisão justificada da comissão.
 5. No segundo turno, os líderes eleitos de turmas não concluintes concorrem automaticamente por categoria. Vice-líderes não concorrem automaticamente. Sem líderes elegíveis, registre o turno sem votação e avance.
 6. No terceiro turno, cadastre os candidatos a jovens ouvidores para a escola inteira.
 7. Gere a ata de cada turno e escolha imprimir ou salvar em PDF no navegador. Atas com desempates pendentes são provisórias.
+
+### Tablet como urna
+
+Abra **Acessar urna** no tablet da comissão. A sessão de gestão é encerrada nesse dispositivo antes da votação. Use **Tela cheia** para ampliar a urna; sair da urna exige novo login para acessar a gestão. O código da escola é preenchido ao abrir a urna pela gestão e mantido entre os eleitores enquanto a página permanece aberta.
+
+O eleitor informa seu código e vota em um cargo por vez, digitando o número do candidato (dois dígitos) no teclado da tela ou em um teclado físico. O nome aparece para conferência. **CORRIGE** limpa a escolha do cargo atual, **BRANCO** escolhe voto em branco e **CONFIRMA** avança. Um número inexistente naquele cargo mostra **VOTO NULO** antes da confirmação. As categorias sem candidatos não aparecem.
+
+A cédula completa é registrada somente após confirmar o último cargo. Se a conexão falhar, a urna mantém as escolhas em memória e permite tentar novamente; a tela **FIM** e o som final aparecem apenas após o servidor aceitar o voto. Em 4,5 segundos, a urna apaga código e escolhas e volta automaticamente ao acesso para o próximo eleitor. Recarregar antes de concluir descarta as escolhas locais; não há registro parcial por cargo. A urna usa sons sintetizados semelhantes aos da urna brasileira, sem gravação oficial, e depende do volume e suporte de áudio do navegador. Há proteção contra tentativas repetidas de códigos inválidos (20 por origem IP/escola a cada janela de 5 minutos), além do controle de uso único no servidor.
 
 Todos os estudantes cadastrados votam nos turnos escolares, inclusive concluintes. No primeiro turno votam apenas nos cargos disponíveis de sua turma. A filiação identitária do eleitor não é coletada. A urna registra totais por candidato e cargo, mas não armazena qual candidato cada código escolheu. Atualizações concorrentes usam controle de versão para evitar duplicação de votos.
 
